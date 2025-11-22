@@ -1,0 +1,413 @@
+{
+  "Version": "2012-10-17",
+  "Id": "CloudTrail-Production-KMS-Policy",
+  "Statement": [
+    {
+      "Sid": "Enable Root Account Permissions",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::<security-AccountId><security-AccountId>:root"
+      },
+      "Action": "kms:*",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:PrincipalType": "Account"
+        }
+      }
+    },
+    {
+      "Sid": "Allow Key Administrators",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::<security-AccountId><security-AccountId>:role/SecurityAdmin",
+          "arn:aws:iam::<security-AccountId><security-AccountId>:role/CloudTrailAdmin",
+          "arn:aws:iam::<security-AccountId><security-AccountId>:user/security-team-lead"
+        ]
+      },
+      "Action": [
+        "kms:Create*",
+        "kms:Describe*",
+        "kms:Enable*",
+        "kms:List*",
+        "kms:Put*",
+        "kms:Update*",
+        "kms:Revoke*",
+        "kms:Disable*",
+        "kms:Get*",
+        "kms:Delete*",
+        "kms:TagResource",
+        "kms:UntagResource",
+        "kms:ScheduleKeyDeletion",
+        "kms:CancelKeyDeletion"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        },
+        "IpAddress": {
+          "aws:SourceIp": [
+            "203.0.113.0/24",
+            "198.51.100.0/24"
+          ]
+        },
+        "DateGreaterThan": {
+          "aws:CurrentTime": "2024-01-01T00:00:00Z"
+        }
+      }
+    },
+    {
+      "Sid": "Deny Key Administrators Cryptographic Operations",
+      "Effect": "Deny",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::<security-AccountId><security-AccountId>:role/SecurityAdmin",
+          "arn:aws:iam::<security-AccountId><security-AccountId>:role/CloudTrailAdmin"
+        ]
+      },
+      "Action": [
+        "kms:Encrypt",
+        "kms:Decrypt",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Allow CloudTrail Service To Encrypt",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "cloudtrail.amazonaws.com"
+      },
+      "Action": [
+        "kms:GenerateDataKey*",
+        "kms:DecryptDataKey"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "kms:EncryptionContext:aws:cloudtrail:arn": [
+            "arn:aws:cloudtrail:*:<security-AccountId><security-AccountId>:trail/*"
+          ]
+        },
+        "StringEquals": {
+          "kms:ViaService": [
+            "cloudtrail.us-east-1.amazonaws.com",
+            "cloudtrail.us-west-2.amazonaws.com",
+            "cloudtrail.eu-west-1.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "Allow CloudTrail Service To Describe",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "cloudtrail.amazonaws.com"
+      },
+      "Action": "kms:DescribeKey",
+      "Resource": "*"
+    },
+    {
+      "Sid": "Allow CloudTrail Service To Decrypt",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "cloudtrail.amazonaws.com"
+      },
+      "Action": "kms:Decrypt",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "kms:CallerAccount": "<security-AccountId><security-AccountId>"
+        },
+        "StringLike": {
+          "kms:EncryptionContext:aws:cloudtrail:arn": "arn:aws:cloudtrail:*:<security-AccountId><security-AccountId>:trail/*"
+        },
+        "StringEquals": {
+          "kms:ViaService": [
+            "cloudtrail.us-east-1.amazonaws.com",
+            "cloudtrail.us-west-2.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "Allow CloudTrail Service ReEncryption",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "cloudtrail.amazonaws.com"
+      },
+      "Action": [
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "kms:EncryptionContext:aws:cloudtrail:arn": "arn:aws:cloudtrail:*:<security-AccountId><security-AccountId>:trail/*"
+        }
+      }
+    },
+    {
+      "Sid": "Allow Log Archive Account Read Access",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::<log-archive-AccountId><log-archive-AccountId>:root"
+      },
+      "Action": [
+        "kms:Decrypt",
+        "kms:DescribeKey"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "kms:EncryptionContext:aws:cloudtrail:arn": "arn:aws:cloudtrail:*:<security-AccountId><security-AccountId>:trail/*"
+        },
+        "StringEquals": {
+          "kms:ViaService": "s3.us-east-1.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "Allow Specific Log Archive Roles Decrypt",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::<log-archive-AccountId><log-archive-AccountId>:role/SecurityAnalyst",
+          "arn:aws:iam::<log-archive-AccountId><log-archive-AccountId>:role/ComplianceAuditor",
+          "arn:aws:iam::<log-archive-AccountId><log-archive-AccountId>:role/SOCTeam"
+        ]
+      },
+      "Action": [
+        "kms:Decrypt",
+        "kms:DescribeKey"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "kms:EncryptionContext:aws:cloudtrail:arn": "arn:aws:cloudtrail:*:<security-AccountId><security-AccountId>:trail/*"
+        },
+        "StringEquals": {
+          "kms:ViaService": "s3.us-east-1.amazonaws.com"
+        },
+        "Bool": {
+          "aws:SecureTransport": "true"
+        }
+      }
+    },
+    {
+      "Sid": "Allow Organization Accounts Decrypt",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "*"
+      },
+      "Action": [
+        "kms:Decrypt",
+        "kms:DescribeKey"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:PrincipalOrgID": "o-xxxxxxxxxx",
+          "kms:ViaService": "s3.us-east-1.amazonaws.com"
+        },
+        "StringLike": {
+          "kms:EncryptionContext:aws:cloudtrail:arn": "arn:aws:cloudtrail:*:<security-AccountId><security-AccountId>:trail/*"
+        },
+        "Bool": {
+          "aws:SecureTransport": "true"
+        }
+      }
+    },
+    {
+      "Sid": "Allow AWS Services For Analysis",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": [
+          "athena.amazonaws.com",
+          "guardduty.amazonaws.com",
+          "securityhub.amazonaws.com",
+          "detective.amazonaws.com",
+          "config.amazonaws.com"
+        ]
+      },
+      "Action": [
+        "kms:Decrypt",
+        "kms:DescribeKey",
+        "kms:CreateGrant"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "kms:CallerAccount": [
+            "<security-AccountId><security-AccountId>",
+            "<log-archive-AccountId><log-archive-AccountId>"
+          ]
+        },
+        "StringLike": {
+          "kms:EncryptionContext:aws:cloudtrail:arn": "arn:aws:cloudtrail:*:<security-AccountId><security-AccountId>:trail/*"
+        }
+      }
+    },
+    {
+      "Sid": "Allow S3 Replication Service",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "s3.amazonaws.com"
+      },
+      "Action": [
+        "kms:Decrypt",
+        "kms:DescribeKey"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "kms:CallerAccount": "<log-archive-AccountId><log-archive-AccountId>"
+        },
+        "StringLike": {
+          "kms:EncryptionContext:aws:cloudtrail:arn": "arn:aws:cloudtrail:*:<security-AccountId><security-AccountId>:trail/*"
+        },
+        "ArnLike": {
+          "aws:SourceArn": "arn:aws:s3:::org-cloudtrail-logs-<log-archive-AccountId><log-archive-AccountId>"
+        }
+      }
+    },
+    {
+      "Sid": "Allow CloudWatch Logs Encryption",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "logs.amazonaws.com"
+      },
+      "Action": [
+        "kms:Encrypt",
+        "kms:Decrypt",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*",
+        "kms:CreateGrant",
+        "kms:DescribeKey"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnLike": {
+          "kms:EncryptionContext:aws:logs:arn": "arn:aws:logs:*:<log-archive-AccountId><log-archive-AccountId>:log-group:/aws/cloudtrail/*"
+        }
+      }
+    },
+    {
+      "Sid": "Deny Non-Secure Transport",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "kms:*",
+      "Resource": "*",
+      "Condition": {
+        "Bool": {
+          "aws:SecureTransport": "false"
+        }
+      }
+    },
+    {
+      "Sid": "Deny Unencrypted Object Uploads",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": [
+        "kms:Decrypt",
+        "kms:ReEncrypt*"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "kms:EncryptionContext:aws:cloudtrail:arn": "arn:aws:cloudtrail:*:<security-AccountId><security-AccountId>:trail/*"
+        }
+      }
+    },
+    {
+      "Sid": "Deny Key Deletion By Non-Admins",
+      "Effect": "Deny",
+      "NotPrincipal": {
+        "AWS": [
+          "arn:aws:iam::<security-AccountId><security-AccountId>:role/SecurityAdmin",
+          "arn:aws:iam::<security-AccountId><security-AccountId>:user/security-team-lead"
+        ]
+      },
+      "Action": [
+        "kms:ScheduleKeyDeletion",
+        "kms:DeleteAlias"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Deny Key Disable Without MFA",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": [
+        "kms:DisableKey",
+        "kms:ScheduleKeyDeletion"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "BoolIfExists": {
+          "aws:MultiFactorAuthPresent": "false"
+        }
+      }
+    },
+    {
+      "Sid": "Require Tagging For Key Operations",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": [
+        "kms:CreateKey",
+        "kms:CreateAlias"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:RequestTag/Owner": "*",
+          "aws:RequestTag/Environment": "*",
+          "aws:RequestTag/DataClassification": "*"
+        }
+      }
+    },
+    {
+      "Sid": "Deny Operations From Untrusted Regions",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "kms:*",
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:RequestedRegion": [
+            "us-east-1",
+            "us-west-2",
+            "eu-west-1"
+          ]
+        },
+        "ArnNotLike": {
+          "aws:PrincipalArn": [
+            "arn:aws:iam::<security-AccountId><security-AccountId>:role/SecurityAdmin",
+            "arn:aws:iam::<security-AccountId><security-AccountId>:role/BreakGlassEmergencyRole"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "Deny If Encryption Context Missing",
+      "Effect": "Deny",
+      "Principal": {
+        "Service": "cloudtrail.amazonaws.com"
+      },
+      "Action": [
+        "kms:Encrypt",
+        "kms:Decrypt",
+        "kms:GenerateDataKey*"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "Null": {
+          "kms:EncryptionContext:aws:cloudtrail:arn": "true"
+        }
+      }
+    }
+  ]
+}
